@@ -1,0 +1,382 @@
+---
+title: "HW#1"
+author: "Tao He"
+date: "1/25/2022"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE,out.width="0.9\\linewidth", fig.align  = 'center')
+pacman::p_load(
+ggplot2,
+rstan,
+rstanarm,
+dplyr,
+magick
+)
+```
+
+
+
+3.1. Describe the null hypotheses to which the p-values given in Table 3.4 correspond. Explain what conclusions you can draw based on these p-values. Your explanation should be phrased in terms of sales, TV, radio, and newspaper, rather than in terms of the coefficients of the linear model.
+
+***sol.n:*** From Table 3.4, our three null hypotheses are that advertising budgets for "TV", "radio" or "newspaper" have no effect on sales, respectively. The mathematical expression is $$\beta = 0$$. The p-values corresponding to "TV" and "radio" are highly significant, and the p-value corresponding to "newspaper" is not significant; so we reject the first two original hypotheses and we do not reject the third one. Therefore, we can conclude that only the budget for newspaper advertising does not affect sales.
+
+
+3.2. Carefully explain the differences between the KNN classifier and KNN regression methods.
+
+***sol.n:*** The KNN classifier uses the data and classifies new data points based on a similarity measure, while the classification is done by majority voting on its neighbors and then estimating the conditional probability.
+However, the KNN regression methods approximates the association between the independent variables and the continuous outcomes by averaging the observations in the same neighborhood in an intuitive way by alculating the average of the numerical targets in the K nearest neighbors
+
+
+3.5. Consider the fitted values that result from performing linear regres- sion without an intercept. In this setting, the ith fitted value takes the form 
+
+$$\hat{y} = x_{i}\hat\beta$$
+
+where
+
+$$\hat\beta = \frac{(\sum\limits_{i=1}^n{x_{i}y_i})}{\sum\limits_{i^{'}=1}^{n}{x_{i^{'}}^{2}}}$$
+
+Show that we can write
+
+$$\hat{y_{i}} = \sum\limits_{i^{'}=1}^n{a_{i^{'}}y_{i^{'}}}$$
+What is $$a_{i^{'}}$$?
+
+*Note: We interpret this result by saying that the fitted values from linear regression are linear combinations of the response values.*
+
+***sol.n:*** 
+$$\hat{y_i} = x_i * \hat{\beta} = x_i * \frac{(\sum\limits_{i=1}^n{x_{i}y_i})}{\sum\limits_{i^{'}=1}^{n}{x_{i^{'}}^{2}}} = \sum\limits_{i=1}^n{\frac{x_{i}y_i}{\sum\limits_{k=1}^n{x_{k^{2}}}}y_i}= \sum\limits_{i^{'}=1}^n{a_{i^{'}}y_{i^{'}}}$$
+
+
+3.6. Using (3.4), argue that in the case of simple linear regression, the least squares line always passes through the point $$(\bar x, \bar y)$$.
+
+***sol.n:*** 
+We have known $$\hat\beta_0 = \bar y - \hat\beta_1\bar x$$.
+The least squared line equation is $$y = \hat\beta0 + \hat\beta1 \bar{x}$$.
+When $$x = \bar{x}$$, $$y = \hat\beta0 + \hat\beta1 \bar{x} =  \bar y - \hat\beta_1\bar x + \hat\beta1 \bar{x} = \bar{y}$$
+Therefore, a line will always pass through $(\bar{x},\bar{y})$ when $x_{i}=\bar{x}$.
+
+3.11. In this problem we will investigate the t-statistic for the null hypothesis $$H_0 : \beta = 0$$ in simple linear regression without an intercept. To begin, we generate a predictor x and a response y as follows.
+
+```{r}
+set.seed(1)
+x <- rnorm(100)
+y <- 2 * x + rnorm(100)
+```
+
+a. Perform a simple linear regression of y onto x, without an intercept. Report the coefficient estimate $$\hat \beta$$, the standard error of this coefficient estimate, and the t-statistic and p-value associated with the null hypothesis $$H_0: \beta=0$$. Comment on these results. (You can perform regression without an intercept using the command lm(y∼x+0).)
+
+```{r}
+fit1 <- lm(y ~ x + 0)
+summary(fit1)
+```
+We can get the estimate $$\hat \beta = 1.9939$$, with an estimate standard error is 0.1065.
+The t-statistic value is 18.73 and p-value is less than 2e-16. Since the small p-value, we can reject the null hypothesis $$H_0: \beta=0$$.
+
+
+b. Now perform a simple linear regression of x onto y without an intercept, and report the coefficient estimate, its standard error, and the corresponding t-statistic and p-values associated with the null hypothesis $$H_0:\beta=0$$. Comment on these results.
+
+```{r}
+fit2 <- lm(x ~ y + 0)
+summary(fit2)
+```
+
+We can get the estimate $$\hat \beta = 0.39111$$, with an estimate standard error is 0.02089.
+The t-statistic value is 18.73 and p-value is less than 2e-16. Since the small p-value, we can reject the null hypothesis $$H_0: \beta=0$$.
+
+
+c. What is the relationship between the results obtained in (a) and (b)?
+
+***sol.n:***
+Both t-statistic value and p value in (a) and (b) are the same. And they actually create the same line.
+Therefore, $$y = 2x + \epsilon$$ can be written as $$x = 0.4(y - \epsilon)$$.
+
+
+d. For the regression of Y onto X without an intercept, the t-statistic for $$H_0:\beta=0$$ takes the form $$\hat \beta/SE(\hat \beta)$$, where $$\hat \beta$$ is given by (3.38), and where $$ SE(\hat \beta)=\sqrt{\frac{\sum_{i=1}^n(y_i-x_i\hat \beta)^2}{(n-1)\sum_{i'=1}^n x_{i'}^2}} $$.
+(These formulas are slightly different from those given in Sections 3.1.1 and 3.1.2, since here we are performing regression without an intercept.) Show algebraically, and confirm numerically in R, that the t-statistic can be written as $$\frac{\sqrt {n-1} \sum_{i=1}^n ((y_i-x_i\hat \beta)^2}{\sqrt{(\sum_{i=1}^nx_i^2)(\sum_{i'=1}^n y_{i'}^2)-(\sum_{i'=1}^nx_{i'}y_{i'})^2}} $$.
+
+***sol.n:***
+
+Show algebraically,
+$$t = \frac{\frac{\sum_i x_iy_i}{\sum_jx_j^2}}{\sqrt{\frac{\sum_i(y_i - x_i\hat\beta)^2}{(n-1)\sum_jx_j^2}}} = \frac{\sqrt{n-1}\sum_ix_iy_i}{\sqrt{\sum_jx_j^2\sum_i(y_i- \frac{x_i\sum_jx_jy_j}{\sum_jx_j^2})^2}} = \frac{\sqrt{n-1}\sum_ix_iy_i}{\sqrt{(\sum_jx_j^2)(\sum_jy_j^2) - (\sum_jx_jy_j)}}$$;
+
+And confirm numerically in R,
+
+```{r}
+n <- length(x)
+t <- sqrt(n - 1)*(x %*% y)/sqrt(sum(x^2) * sum(y^2) - (x %*% y)^2)
+as.numeric(t)
+```
+
+e. Using the results from (d), argue that the t-statistic for the regression of y onto x is the same as the t-statistic for the regression of x onto y.
+
+***sol.n:***
+If we replace x to y, the result of equation will be the same.
+
+
+f. In R, show that when regression is performed with an intercept, the t-statistic for $$H_0:\beta=0$$ is the same for the regression of y onto x as it is for the regression of x onto y.
+
+```{r}
+fit3 <- lm(y ~ x)
+summary(fit3)
+
+fit4 <- lm(x ~y)
+summary(fit4)
+```
+We can obtain the t-statistic for $$H_0:\beta=0$$ is the same for the regression of y onto x with 18.56 as it is for the regression of x onto y.
+
+
+3.12. This problem involves simple linear regression without an intercept.
+
+a. Recall that the coefficient estimate $$\hat \beta$$ for the linear regression of Y onto X without an intercept is given by (3.38). Under what circumstance is the coefficient estimate for the regression of X onto Y the same as the coefficient estimate for the regression of Y onto X?
+
+***sol.n:***
+The coefficient estimate for the regression of X onto Y is $$\hat\beta = \frac{\sum_i x_iy_i}{\sum_j x_j^2}$$;
+
+The coefficient estimate for the regression of Y onto X is $$\hat\beta' = \frac{\sum_i x_iy_i}{\sum_j y_j^2}$$.
+
+
+b. Generate an example in R with n = 100 observations in which the coefficient estimate for the regression of X onto Y is different from the coefficient estimate for the regression of Y onto X.
+
+```{r}
+set.seed(1)
+x <- 1:100
+
+y <- 2 * x + rnorm(100)
+
+fit.y <- lm(y ~ x + 0)
+fit.x <- lm(x ~ y + 0)
+
+summary(fit.y)
+summary(fit.x)
+```
+
+c. Generate an example in R with n = 100 observations in which the coefficient estimate for the regression of X onto Y is the same as the coefficient estimate for the regression of Y onto X.
+
+```{r}
+set.seed(1)
+x <- 1:100
+y <- 100:1
+
+fit.y <- lm(y ~ x + 0)
+fit.x <- lm(x ~ y + 0)
+
+summary(fit.y)
+summary(fit.x)
+```
+
+
+3.13. In this exercise you will create some simulated data and will fit simple linear regression models to it. Make sure to use set.seed(1) prior to starting part (a) to ensure consistent results.
+
+a. Using the rnorm() function, create a vector, x, containing 100 observations drawn from a $$N(0, 1)$$ distribution. This represents a feature, X.
+
+```{r}
+set.seed(1)
+x <- rnorm(100)
+```
+
+b. Using the rnorm() function, create a vector, eps, containing 100 observations drawn from a $$N(0,0.25)$$ distribution i.e. a normal distribution with mean zero and variance 0.25.
+
+```{r}
+eps <- rnorm(100, sd = sqrt(0.25))
+```
+
+c. Using x and eps, generate a vector y according to the model $$ Y = -1 + 0.5X + \epsilon $$ What is the length of the vector y? What are the values of $$\beta_0$$ and $$\beta_1$$ in this linear model?
+
+```{r}
+y <- -1 + 0.5 * x + eps
+length(y)
+```
+
+The length of the vector y is 100. The values of $$\beta_0$$ and $$\beta_1$$ in this linear model are -1 and 0.5, respectively.
+
+
+d. Create a scatter plot displaying the relationship between x and y. Comment on what you observe.
+
+```{r}
+plot(x, y)
+```
+The relation between x and y looks like linear.
+
+e. Fit a least squares linear model to predict y using x. Comment on the model obtained. How do $$\beta_0$$ and $$\beta_1$$ compare to $$\beta_0$$ and $$\beta_1$$?
+
+```{r}
+fit5 <- lm(y ~ x)
+summary(fit5)
+```
+
+The value of $$\beta_0$$ and $$\beta_1$$ compare to $$\beta_0$$ and $$\beta_1$$ are very close.
+
+f. Display the least squares line on the scatter plot obtained in (d). Draw the population regression line on the plot, in a different color. Use the legend() command to create an appropriate legend.
+
+```{r}
+plot(x, y)
+abline(fit5, col = "red")
+abline(-1, 0.5, col = "blue")
+legend("topleft", c("Least square", "Regression"), col = c("red", "blue"), lty = c(1, 1))
+```
+
+
+g. Now fit a polynomial regression model that predicts y using x and x2. Is there evidence that the quadratic term improves the model fit? Explain your answer.
+
+```{r}
+fit6 <- lm(y ~ x + I(x^2))
+summary(fit6)
+```
+R^2 in linear regression model is 0.4619. R^2 in polynomial regression model is 0.4672.
+RSE in linear regression model is 0.4814. RSE in polynomial regression model is 0.479.
+Although the R^2 in polynomial regression model is slightly higher than it in linear regression model and RSE is slightly lower than it in linear regression model, the coefficient value of x^2 is not significant since the p-value is higher than 0.05.
+Therefore, we have not sufficient evidence to say the quadratic term improves the model fit.
+
+
+h. Repeat (a)–(f) after modifying the data generation process in such a way that there is less noise in the data. The model (3.39) should remain the same. You can do this by decreasing the variance of the normal distribution used to generate the error term in (b). Describe your results.
+
+```{r}
+set.seed(1)
+eps <- rnorm(100, sd = 0.125)
+x <- rnorm(100)
+y <- -1 + 0.5 * x + eps
+
+fit7 <- lm(y ~ x)
+summary(fit7)
+
+plot(x, y)
+abline(fit7, col = "red")
+abline(-1, 0.5, col = "blue")
+legend("topleft", c("Least square", "Regression"), col = c("red", "blue"), lty = c(1, 1))
+```
+We try to decrease the variance of the normal distribution used to generate the error term in (b). Now, the relationship between x and y is nearly linear and we get a higher R^2 and lower RSE.
+
+i. Repeat (a)–(f) after modifying the data generation process in such a way that there is more noise in the data. The model (3.39) should remain the same. You can do this by increasing the variance of the normal distribution used to generate the error term in (b). Describe your results.
+
+```{r}
+set.seed(1)
+eps <- rnorm(100, sd = 0.5)
+x <- rnorm(100)
+y <- -1 + 0.5 * x + eps
+
+fit8 <- lm(y ~ x)
+summary(fit8)
+
+plot(x, y)
+abline(fit8, col = "red")
+abline(-1, 0.5, col = "blue")
+legend("topleft", c("Least square", "Regression"), col = c("red", "blue"), lty = c(1, 1))
+```
+We try to increase the variance of the normal distribution used to generate the error term in (b). The relationship between x and y is not linear and we get a lower R^2 and higher RSE.
+
+(j) What are the confidence intervals for $$\beta_0$$ and $$\beta_1$$ based on the original data set, the noisier data set, and the less noisy data set? Comment on your results.
+
+```{r}
+confint(fit5)
+confint(fit7)
+confint(fit8)
+```
+As the noise increases, the confidence intervals widen.
+
+3.14. This problem focuses on the col linearity problem.
+
+(a) Perform the following commands in R:
+
+```{r}
+set.seed(1)
+x1 <- runif(100)
+x2 <- 0.5 * x1 + rnorm(100)/10
+y <- 2 + 2 * x1 + 0.3 * x2 + rnorm(100)
+```
+
+The last line corresponds to creating a linear model in which y is a function of x1 and x2. Write out the form of the linear model. What are the regression coefficients?
+
+***sol.n:***
+The form of linear model is $$ y = 2 + 2x_1 + 0.3x2 + \epsilon$$, with $$\epsilon$$ ~ $$N(0,1)$$.
+The regression coefficients are 2, 2 and 0.3, respectively.
+
+
+(b) What is the correlation between x1 and x2? Create a scatterplot displaying the relationship between the variables.
+
+```{r}
+cor(x1, x2)
+plot(x1, x2)
+```
+
+x1 and x2 are highly related.
+
+(c) Using this data, fit a least squares regression to predict $$y$$ using $$x1$$ and $$x2$$. Describe the results obtained. What are $$\hat \beta_0, \hat \beta_1, \hat \beta_2$$? How do these relate to the true $$\beta_0, \beta_1, \beta_2$$? Can you reject the null hypothesis $$H_0:\beta_1=0$$? How about the null hypothesis $$H_0:\beta_2=0$$?
+
+```{r}
+fit9 <- lm(y ~ x1 + x2)
+summary(fit9)
+```
+
+$$\hat \beta_0, \hat \beta_1, \hat \beta_2$$ are 2.1305, 1.4396 and 1.0097, respectively.
+Only $$\hat \beta_0$$ is close to the true $$\beta$$.
+We can reject the null hypothesis $$H_0:\beta_1=0$$ at the 95% confidence level. 
+However, we can not reject the null hypothesis $$H_0:\beta_2=0$$ at the 95% confidence level. 
+
+(d) Now fit a least squares regression to predict y using only x1. Comment on your results. Can you reject the null hypothesis $$H_0:\beta_1 = 0$$?
+
+```{r}
+fit10 <- lm(y ~ x1)
+summary(fit10)
+```
+
+The estimate coefficient of x1 in this model is different from one in (c).
+Now, we can reject the the null hypothesis $$H_0:\beta_1 = 0$$ since it has a small p-value.
+
+(e) Now fit a least squares regression to predict y using only x2. Comment on your results. Can you reject the null hypothesis $$H_0:\beta_1 = 0$$?
+
+```{r}
+fit11 <- lm(y ~ x2)
+summary(fit11)
+```
+
+The estimate coefficient of x2 in this model is different from one in (c).
+Now, we can reject the the null hypothesis $$H_0:\beta_1 = 0$$ since it has a small p-value.
+
+
+(f) Do the results obtained in (c)–(e) contradict each other? Explain your answer.
+
+***sol.n:***
+No, it is reasonable.
+Since the predictor variables "x1" and "x2" are highly correlated, there exists covariance. Therefore, it is difficult to determine how each predictor variable is associated with the response separately. Since covariance reduces the accuracy of the regression coefficient estimates, it leads to an increase in the standard error of $$\hat\beta_1$$
+
+
+(g) Now suppose we obtain one additional observation, which was unfortunately mismeasured.
+
+```{r}
+x1 <- c(x1, 0.1) 
+x2 <- c(x2, 0.8) 
+y <- c(y, 6)
+```
+
+Re-fit the linear models from (c) to (e) using this new data. What effect does this new observation have on the each of the models? In each model, is this observation an outlier? A high-leverage point? Both? Explain your answers.
+
+```{r}
+fit12 <- lm(y ~ x1 + x2)
+fit13 <- lm(y ~ x1)
+fit14 <- lm(y ~ x2)
+summary(fit12)
+summary(fit13)
+summary(fit14)
+```
+
+```{r}
+plot(fit12)
+```
+\newpage
+In the model with x1 and x2, the last point is the high leverage point.
+
+```{r}
+plot(fit13)
+```
+
+In the model with only x1, the last point is outlier.
+
+```{r}
+plot(fit14)
+```
+
+In the model with only x2, the last point is the high leverage point.
+
