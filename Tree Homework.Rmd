@@ -1,0 +1,237 @@
+---
+title: "Tree Homework"
+author: "Tao He"
+date: "2/27/2022"
+output:
+  pdf_document: default
+  latex_engine: default
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE,out.width="0.9\\linewidth", fig.align  = 'center')
+pacman::p_load(
+ggplot2,
+dplyr,
+ISLR,
+boot,
+caTools,
+leaps,
+MASS,
+randomForest,
+splines,
+mgcv,
+gam, 
+tree,
+gbm
+)
+```
+
+8.1
+***sol.n:***
+```{r}
+par(xpd = NA)
+plot(NA, NA, xlim = c(0,10), ylim = c(0,10), xlab = "X", ylab = "Y")
+
+# t1: x = 2; (0, 2) (2, 10)
+lines(x = c(2, 2), y = c(0, 10))
+text(x = 2, y = 11, labels = c("t1"), col = "red")
+# t2: y = 8; (2, 10) (7, 7)
+lines(x = c(2, 10), y = c(7, 7))
+text(x = 11, y = 7, labels = c("t2"), col = "red")
+# t3: x = 5; (5, 5) (0, 7)
+lines(x = c(5, 5), y = c(0, 7))
+text(x = 5, y = 7, labels = c("t3"), col = "red")
+
+text(x = (0 + 2)/2, y = 5, labels = c("R1"))
+text(x = (2 + 10)/2, y = (7 + 10)/2, labels = c("R2"))
+text(x = (2 + 5)/2, y = (0 + 7)/2, labels = c("R3"))
+text(x = (5 + 10)/2, y = (0 + 7)/2, labels = c("R4"))
+```
+
+
+8.2
+***sol.n:***
+Explain $$f(X) = \sum_{i = 1}^pf_i(X_j)$$
+If d = 1 every term in $$\hat{f}(x) = \sum_{b = 1}^B\lambda \hat{f}^b(x)$$ is based on a single predictor. All these terms are summed up making the model additive.
+
+8.3
+***sol.n:***
+```{r}
+p <- seq(0, 1, 0.01)
+gini <- p * (1 - p) * 2
+entropy <- -(p * log(p) + (1 - p) * log(1 - p))
+class.err <- 1 - pmax(p, 1 - p)
+matplot(p, cbind(gini, entropy, class.err), type = "l", col = c("red", "green", "blue"))
+legend("topright",legend=c("gini","entropy", "class error"),pch=19,col=c("red", "green", "blue"))
+```
+
+
+8.5
+***sol.n:***
+majority vote: 6 vs 4 –> red
+avg. prob.: P(Class is Red|X) = 4.5/10 = 0.45 –> green
+
+8.7
+
+```{r}
+set.seed(679)
+train <- sample(1 : nrow(Boston), nrow(Boston) / 2)
+test <- (-train)
+boston.train <- Boston[train, -14]
+boston.test <- Boston[-train, -14]
+
+y.train <- Boston[train, "medv"]
+y.test <- Boston[test, "medv"]
+```
+
+```{r warning=FALSE}
+ntrees <- 500
+p <- ncol(boston.train)
+test.mse <- c()
+type <- c()
+mtry <- c(round(p/2), round(sqrt(p)), p)
+for (i in mtry) {
+  rf.boston <- randomForest(x = boston.train, y = y.train, 
+                            xtest = boston.test, ytest = y.test, 
+                            ntree = ntrees, mtry = i)
+  test.mse <- c(rf.boston$test$mse, test.mse)
+}
+for (i in mtry) {
+  type <- c(type, paste("mtry = ", rep(i, ntrees), sep = ""))
+}
+plot.data <- data.frame(
+  ntrees = rep(c(1:ntrees), length(mtry)),
+  MSE = test.mse, 
+  type = factor(type))
+ggplot(data = plot.data) + 
+  geom_line(aes(x = ntrees, y = MSE, group = type, color = type)) + ylim(10, 20)
+```
+
+In this plot, we can see that for a single tree, the test MSE is very high. The test MSE decreases as the number of trees increases.
+
+
+8.8
+
+(a)
+```{r}
+# Split the data set into a training set and a test set.
+set.seed(679)
+
+train <- sample(1 : nrow(Carseats), nrow(Carseats) /2 )
+car.train <- Carseats[train,]
+car.test <- Carseats[-train,] 
+```
+
+
+(b)
+```{r}
+reg.tree <- tree(Sales ~. , data = Carseats, subset = train)
+summary(reg.tree)
+```
+
+```{r}
+plot(reg.tree)
+text(reg.tree ,pretty =0)
+```
+
+```{r}
+yhat <- predict(reg.tree, newdata = car.test)
+mean((yhat - car.test$Sales)^2)
+```
+
+(c)
+```{r}
+# Use cross-validation in order to determine the optimal level of tree complexity.
+set.seed(679)
+
+cv.car <- cv.tree(reg.tree)
+plot(cv.car$size, cv.car$dev, xlab = "size", ylab = "deviance", type = "b")
+```
+
+From this plot, we can see the tree of size 8 is selected by cross-validation. We can prune the tree to obtain the 8-node tree.
+
+
+```{r}
+prune.car <- prune.tree(reg.tree, best = 8)
+plot(prune.car)
+text(prune.car,pretty=0)
+```
+
+```{r}
+yhat <- predict(prune.car, newdata = car.test)
+mean((yhat - car.test$Sales)^2)
+```
+
+After we pruned the tree, the test error increases to 5.0.
+
+
+(d)
+```{r}
+# Use the bagging approach in order to analyze this data. 
+bag.car <- randomForest(Sales ~ . ,data = car.train, mtry = 10, importance = TRUE)
+
+yhat.bag <- predict(bag.car, newdata=car.test)
+mean((yhat.bag - car.test$Sales)^2)
+```
+
+```{r}
+importance(bag.car)
+```
+
+```{r}
+varImpPlot(bag.car)
+```
+
+
+The most important variables are the price and shelving location.
+And compare to the regression tree, bagging approach has less test MSE.
+
+(e)
+```{r}
+# Use random forests to analyze this data. 
+set.seed(679)
+
+rf.car <- randomForest(Sales ~ . ,data = car.train, mtry = 3, importance = TRUE)
+yhat.rf <- predict(rf.car, newdata=car.test)
+mean((yhat.rf - car.test$Sales)^2)
+```
+
+
+8.11
+
+(a)
+```{r}
+# Create a training set consisting of the first 1,000 observations,
+# and a test set consisting of the remaining observations.
+train <- 1:1000
+Caravan$Purchase <- ifelse(Caravan$Purchase == "Yes", 1, 0)
+
+Caravan.train <- Caravan[train,]
+Caravan.test <- Caravan[-train,]
+```
+
+(b)
+```{r warning=FALSE}
+# Fit a boosting model to the training set with Purchase as the response and the other variables as predictors.
+set.seed(679)
+boost.caravan <- gbm(Purchase ~ ., data = Caravan.train, distribution = "gaussian", 
+                     n.trees = 1000, shrinkage = 0.01)
+summary(boost.caravan)
+```
+
+(c)
+```{r}
+# Use the boosting model to predict the response on the test data.
+probs.test <- predict(boost.caravan, Caravan.test, n.trees = 1000, type = "response")
+pred.test <- ifelse(probs.test > 0.2, 1, 0)
+table(Caravan.test$Purchase, pred.test)
+```
+
+```{r warning=FALSE}
+logit.caravan <- glm(Purchase ~ ., data = Caravan.train, family = "binomial")
+probs.test2 <- predict(logit.caravan, Caravan.test, type = "response")
+
+pred.test2 <- ifelse(probs.test > 0.2, 1, 0)
+table(Caravan.test$Purchase, pred.test2)
+```
+
