@@ -1,0 +1,258 @@
+---
+title: "GAM Homework"
+author: "Tao He"
+date: "2/14/2022"
+output:
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE,out.width="0.9\\linewidth", fig.align  = 'center')
+pacman::p_load(
+ggplot2,
+dplyr,
+glmnet,
+pls,
+ISLR,
+boot,
+caTools,
+leaps,
+MASS,
+splines,
+mgcv,
+gam
+)
+```
+
+7.3. Suppose we fit a curve with basis functions b1(X) = X, b2(X) = (X − 1)^2I(X ≥ 1). (Note that I(X ≥ 1) equals 1 for X ≥ 1 and 0 otherwise.) We fit the linear regression model $$Y = \beta_0 + \beta_1b_1(X) + \beta_2b_2(X) + \epsilon$$,
+and obtain coefficient estimates $$\hat\beta_0 = 1, \hat\beta_1 = 1, \hat\beta_2 = -2$$. Sketch the estimated curve between X = −2 and X = 2. Note the intercepts, slopes, and other relevant information.
+
+```{r}
+x <- -2:2
+y <- 1 + x + (-2) * (x - 1)^2 * I(x > 1)
+plot(x, y)
+```
+
+When x is in [-2, 1), the curve is linear with the intercept(1) and slope(x), y = 1+x, and when x is in [1,2], the curve is quadratic and y = 1+x-2(x-1)^2.
+
+
+
+7.9. This question uses the variables dis (the weighted mean of distances to five Boston employment centers) and nox (nitrogen oxides concentration in parts per 10 million) from the Boston data. We will treat dis as the predictor and nox as the response.
+
+(a) Use the poly() function to fit a cubic polynomial regression to predict nox using dis. Report the regression output, and plot the resulting data and polynomial fits.
+
+```{r}
+set.seed(679)
+fit <- lm(nox ~ poly(dis, 3), data = Boston)
+summary(fit)
+
+dislims <- range(Boston$dis)
+dis.grid <- seq(from = dislims[1], to = dislims[2])
+preds <- predict(fit, newdata = list(dis = dis.grid),
+se = TRUE)
+se.bands <- cbind(preds$fit + 2 * preds$se.fit,
+preds$fit - 2 * preds$se.fit)
+
+plot(nox ~ dis, data = Boston, xlim = dislims, cex = .5, col = "darkgrey")
+lines(dis.grid, preds$fit, lwd = 2, col = "blue")
+matlines(dis.grid, se.bands, lwd = 1, col = "blue", lty = 3)
+```
+
+We can say that all polynomial terms are significant.
+
+(b) Plot the polynomial fits for a range of different polynomial degrees (say, from 1 to 10), and report the associated residual sum of squares.
+
+```{r}
+rss <- rep(NA, 10)
+
+for (i in 1:10){
+  fit <- lm(nox ~ poly(dis, i), data = Boston)
+  rss[i] <- sum(fit$residuals^2)
+}
+
+plot(1:10, rss, xlab = "Degree", ylab = "RSS", type = "l")
+```
+
+It shows the RSS decreases when the degree of polynomial increases.
+
+(c) Perform cross-validation or another approach to select the optimal degree for the polynomial, and explain your results.
+
+```{r}
+deltas <- rep(NA, 10)
+for (i in 1:10){
+  fit <- glm(nox ~ poly(dis, i), data = Boston)
+  deltas[i] <- cv.glm(Boston, fit, K = 10)$delta[1]
+}
+
+plot(1:10, deltas, xlab = "Degree", ylab = "Test MSE", type = "l")
+```
+
+
+(d) Use the bs() function to fit a regression spline to predict nox using dis. Report the output for the fit using four degrees of freedom. How did you choose the knots? Plot the resulting fit.
+
+```{r}
+fit <- lm(nox ~ bs(dis, knots = c(3, 7, 12)), data = Boston)
+summary(fit)
+
+dislims <- range(Boston$dis)
+dis.grid <- seq(from = dislims[1], to = dislims[2])
+preds <- predict(fit, newdata = list(dis = dis.grid),
+se = TRUE)
+se.bands <- cbind(preds$fit + 2 * preds$se.fit,
+preds$fit - 2 * preds$se.fit)
+
+plot(nox ~ dis, data = Boston, xlim = dislims, cex = .5, col = "darkgrey")
+lines(dis.grid, preds$fit, lwd = 2, col = "blue")
+matlines(dis.grid, se.bands, lwd = 1, col = "blue", lty = 3)
+```
+
+(e) Now fit a regression spline for a range of degrees of freedom, and plot the resulting fits and report the resulting RSS. Describe the results obtained.
+
+```{r}
+rss <- rep(NA, 14)
+for (i in 3:14){
+  fit <- lm(nox ~ bs(dis, df = i), data = Boston)
+  rss[i] <- sum(fit$residuals^2)
+}
+
+plot(3:14, rss[-c(1,2)], xlab = "Degrees of freedom", ylab = "RSS", type = "l")
+```
+
+
+(f) Perform cross-validation or another approach in order to select the best degrees of freedom for a regression spline on this data. Describe your results.
+
+```{r warning=FALSE}
+cv <- rep(NA, 14)
+for (i in 3:14){
+  fit <- glm(nox ~ bs(dis, df = i), data = Boston)
+  cv[i] <- cv.glm(Boston, fit, K = 10)$delta[1]
+}
+
+plot(3:14, cv[-c(1,2)], xlab = "Degree of freedom", ylab = "test MSE", type = "l")
+```
+
+Test MSE is minimum for 13 degrees of freedom.
+
+
+7.10. This question relates to the College data set.
+
+(a) Split the data into a training set and a test set.Using out-of-state tuition as the response and the other variables as the predictors, perform forward step-wise selection on the training set in order to identify a satisfactory model that uses just a subset of the predictors.
+
+```{r}
+set.seed(679)
+attach(College)
+
+train <- sample(length(Outstate), length(Outstate)/2)
+test <- -train
+
+College.train <- College[train,]
+College.test <- College[test,]
+
+fit <- regsubsets(Outstate ~., data = College.train, nvmax = 17, method = "forward")
+fit.summary <- summary(fit)
+
+# Cp
+plot(fit.summary$cp, xlab = "Number of Variables", ylab = "Cp", type = "l")
+cp.min <- which.min(fit.summary$cp)
+cp.sd <- sd(fit.summary$cp)
+points(cp.min, fit.summary$cp[cp.min], col = 'blue', pch = 20)
+abline(h = fit.summary$cp[cp.min] + 0.1 * cp.sd, col = "red", lty= 2)
+abline(h = fit.summary$cp[cp.min] - 0.1 * cp.sd, col = "red", lty= 2)
+
+# BIC
+plot(fit.summary$bic, xlab = "Number of Variables", ylab = "BIC", type = "l")
+bic.min <- which.min(fit.summary$bic)
+bic.sd <- sd(fit.summary$bic)
+points(bic.min, fit.summary$bic[bic.min], col = 'blue', pch = 20)
+abline(h = fit.summary$bic[bic.min] + 0.1 * bic.sd, col = "red", lty= 2)
+abline(h = fit.summary$bic[bic.min] - 0.1 * bic.sd, col = "red", lty= 2)
+
+# Adjusted R^2
+plot(fit.summary$adjr2, xlab = "Number of Variables", ylab = "BIC", type = "l")
+adjr2.max <- which.max(fit.summary$adjr2)
+adjr2.sd <- sd(fit.summary$adjr2)
+points(adjr2.max, fit.summary$adjr2[adjr2.max], col = 'blue', pch = 20)
+abline(h = fit.summary$adjr2[adjr2.max] + 0.1 * adjr2.sd, col = "red", lty= 2)
+abline(h = fit.summary$adjr2[adjr2.max] - 0.1 * adjr2.sd, col = "red", lty= 2)
+
+
+fit <- regsubsets(Outstate ~., data = College, method = "forward")
+coefficients <- coef(fit, id = 6)
+names(coefficients)
+
+```
+
+
+
+(b) Fit a GAM on the training data, using out-of-state tuition as the response and the features selected in the previous step as the predictors. Plot the results, and explain your findings.
+
+```{r warning=FALSE}
+fit <- gam(Outstate ~ Private + s(Room.Board, 2) + s(PhD, 2) + s(perc.alumni, 2) 
+           + s(Expend, 5) + s(Grad.Rate, 2), data=College.train)
+par(mfrow = c(2, 3))
+plot(fit, se = T, col = "blue")
+```
+
+(c) Evaluate the model obtained on the test set, and explain the results obtained.
+
+```{r}
+preds <- predict(fit, College.test)
+err <- mean((College.test$Outstate - preds)^2)
+err
+
+tss <- mean((College.test$Outstate - mean(College.test$Outstate))^2)
+rss <- 1 - err / tss
+rss
+```
+
+(d) For which variables, if any, is there evidence of a non-linear relationship with the response?
+
+```{r}
+summary(fit)
+```
+
+
+
+7.11. In Section 7.7, it was mentioned that GAMs are generally fit using a backfitting approach. The idea behind back fitting is actually quite simple. We will now explore backfitting in the context of multiple linear regression.
+Suppose that we would like to perform multiple linear regression, but we do not have software to do so. Instead, we only have software to perform simple linear regression. Therefore, we take the following iterative approach: we repeatedly hold all but one coefficient esti- mate fixed at its current value, and update only that coefficient estimate using a simple linear regression. The process is continued un- til convergence—that is, until the coefficient estimates stop changing.
+
+We now try this out on a toy example.
+
+(a) Generate a response Y and two predictors X1 and X2, with n = 100.
+
+```{r}
+set.seed(679)
+y <- rnorm(100)
+x1 <- rnorm(100)
+x2 <- rnorm(100)
+```
+
+(b) Initialize $$\hat\beta_1$$ to take on a value of your choice. It does not matter what value you choose.
+
+```{r}
+beta1 <- 2
+```
+
+
+(c) Keeping $$\hat\beta_1$$ fixed, fit the model $$Y - \hat\beta_1X_1 = \hat\beta_0 + \hat\beta_2X_2 + \epsilon$$. You can do this as follows:
+```{r}
+a <- y - beta1 * x1
+beta2 <- lm(a~x2)$coef[2]
+```
+
+
+(d) Keeping $$\hat\beta_2$$ fixed, fit the model $$Y - \hat\beta_2X_2 = \hat\beta_0 + \hat\beta_1X_1 +\epsilon$$.
+You can do this as follows:
+```{r}
+a <- y - beta2 * x2
+beta1 <- lm(a~x1)$coef[2]
+```
+
+(e) Write a for loop to repeat (c) and (d) 1,000 times. Report the estimates of $$\hat\beta_0$$, $$\hat\beta_1$$, and $$\hat\beta_2$$ at each iteration of the for loop. Create a plot in which each of these values is displayed, with $$\hat\beta_0$$, $$\hat\beta_1$$, and $$\hat\beta_2$$ each shown in a different color.
+
+```{r}
+
+```
+
+
